@@ -237,14 +237,14 @@ def main():
                     hosts_in_checkmk_with_label.append(host)
 
 
-    # Find hosts in checkmk from puppetdb, but not currently in puppetdb
+    # Remove hosts from checkmk that are no longer in puppetdb or are excluded
     hosts_extra_in_checkmk = []
     for host in hosts_checkmk:
-        if host not in hosts_puppetdb:
+        if host not in hosts_puppetdb or host in exclude_hosts:
             # hosts_checkmk[host] will be true if from_puppetdb label present
             if hosts_checkmk[host]:
-                print("Extra host in checkmk previously from puppetdb: %s" % host)
                 hosts_extra_in_checkmk.append(host)
+                print("Removing host from checkmk: %s" % host)
                 del_host_from_checkmk(host)
 
 
