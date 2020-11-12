@@ -18,6 +18,9 @@ import requests
 import socket
 import yaml
 
+# FIXME: Resolve this in a better/more elegant way
+# https://stackoverflow.com/questions/38015537/python-requests-exceptions-sslerror-dh-key-too-small
+requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'ALL:@SECLEVEL=1'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=argparse.FileType('r'),
@@ -26,7 +29,7 @@ args = parser.parse_args()
 config = yaml.safe_load(args.config)
 
 
-logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=logging.DEBUG)
 
 
 def get_all_hosts_checkmk():
@@ -96,6 +99,8 @@ def add_host_to_checkmk(hostname, hostlabels):
     checkmk_api_url = config['checkmk_api_url']
     checkmk_api_username = config['checkmk_api_username']
     checkmk_api_secret = config['checkmk_api_secret']
+    checkmk_default_folder = config['checkmk_default_folder']
+    checkmk_default_location = config['checkmk_default_location']
 
     hostlabels['from_puppetdb'] = 'true'
 
@@ -106,9 +111,9 @@ def add_host_to_checkmk(hostname, hostlabels):
         logging.debug('-- host appears dual stacked, adding ip-v4v6')
         payload = {'request': json.dumps({
             'hostname': hostname,
-            'folder': 'Servers/SHOR',
+            'folder': checkmk_default_folder,
             'attributes': {
-                'tag_location': 'location_shor',
+                'tag_location': checkmk_default_location,
                 'tag_address_family': 'ip-v4v6',
                 'labels': hostlabels
                 }
@@ -117,17 +122,17 @@ def add_host_to_checkmk(hostname, hostlabels):
         logging.debug('-- host not dual stacked')
         payload = {'request': json.dumps({
             'hostname': hostname,
-            'folder': 'Servers/SHOR',
+            'folder': checkmk_default_folder,
             'attributes': {
-                'tag_location': 'location_shor',
+                'tag_location': checkmk_default_location,
                 'labels': hostlabels
                 }
             })}
 
     logging.debug('-- adding host %s', hostname)
     r = requests.post("%s?action=add_host&_username=%s&_secret=%s" % (checkmk_api_url, checkmk_api_username, checkmk_api_secret), data=payload)
-    logging.debug('-- got resp code=', r.status_code)
-    logging.debug('-- got resp text=', r.text)
+    logging.debug('-- got resp code = %d' % r.status_code)
+    logging.debug('-- got resp text = %s' % r.text)
     r_json = json.loads(r.text)
 
     # Successful add_host gives response of {"result": null, "result_code": 0}
@@ -173,8 +178,8 @@ def add_label_to_existing(hostname, new_labels):
 
     logging.debug('-- adding labels %s to host %s' % (existing_labels, hostname))
     r = requests.post("%s?action=edit_host&_username=%s&_secret=%s" % (checkmk_api_url, checkmk_api_username, checkmk_api_secret), data=payload)
-    logging.debug('-- got resp code=', r.status_code)
-    logging.debug('-- got resp text=', r.text)
+    logging.debug('-- got resp code = %d' % r.status_code)
+    logging.debug('-- got resp text = %s' % r.text)
     r_json = json.loads(r.text)
 
     # Successful edit_host gives response of {"result": null, "result_code": 0}
@@ -199,8 +204,8 @@ def del_host_from_checkmk(hostname):
 
     logging.debug('-- deleting host %s', hostname)
     r = requests.post("%s?action=delete_host&_username=%s&_secret=%s" % (checkmk_api_url, checkmk_api_username, checkmk_api_secret), data=payload)
-    logging.debug('-- got resp code=', r.status_code)
-    logging.debug('-- got resp text=', r.text)
+    logging.debug('-- got resp code = %d' % r.status_code)
+    logging.debug('-- got resp text = %s' % r.text)
     r_json = json.loads(r.text)
 
     # Successful delete_host gives response of {"result": null, "result_code": 0}

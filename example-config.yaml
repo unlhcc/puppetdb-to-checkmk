@@ -10,6 +10,8 @@ puppetdb_api_url: https://<fqdn:port>/pdb/query/v4/resources
 checkmk_api_url: https://<fqdn>/<site>/check_mk/webapi.py
 checkmk_api_username: <username>
 checkmk_api_secret: <secret>
+checkmk_default_folder: Servers/Site
+checkmk_default_location: location_hq
 
 # List of hosts to exclude from puppetdb
 exclude_hosts:
