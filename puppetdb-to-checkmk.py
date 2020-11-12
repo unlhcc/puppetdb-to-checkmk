@@ -273,7 +273,7 @@ def main():
             # hosts_checkmk[host] will be true if from_puppetdb label present
             if hosts_checkmk[host]:
                 hosts_extra_in_checkmk.append(host)
-                if hosts_checkmk[host]['from_puppetdb']:
+                if hosts_checkmk[host]['from_puppetdb'] == checkmk_puppetdb_label:
                     logging.debug('host %s has puppetdb_label from this instance, deleting' % host)
                     del_host_from_checkmk(host)
                 else:
