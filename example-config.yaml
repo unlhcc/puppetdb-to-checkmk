@@ -6,12 +6,13 @@ puppetdb_cafile: <path to puppetdb ca cert>
 # API URL for puppetdb server
 puppetdb_api_url: https://<fqdn:port>/pdb/query/v4/resources
 
-# CheckMK API config
+# CheckMK config
 checkmk_api_url: https://<fqdn>/<site>/check_mk/webapi.py
 checkmk_api_username: <username>
 checkmk_api_secret: <secret>
 checkmk_default_folder: Servers/Site
 checkmk_default_location: location_hq
+checkmk_puppetdb_label: <uniquelabel>
 
 # List of hosts to exclude from puppetdb
 exclude_hosts:

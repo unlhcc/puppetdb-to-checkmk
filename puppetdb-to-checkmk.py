@@ -80,8 +80,8 @@ def get_all_hosts_puppetdb():
         tags = res['tags']
         hostname = res['certname']
         for tag in res['tags']:
-            if tag.startswith('roles::'):
-                host_role = tag[7:]
+            if tag.startswith('roles::') or tag.startswith('role::'):
+                host_role = tag.split('::')[1]
         hosts[hostname] = { 'puppet_role': host_role }
 
     logging.info('got %s hosts from puppetdb', len(hosts))
@@ -91,7 +91,7 @@ def get_all_hosts_puppetdb():
 
 def add_host_to_checkmk(hostname, hostlabels):
     """ Add host to checkmk with any hostlabels from puppetdb, adding label of
-        from_puppetdb=true to help indicate host was added by this script
+        from_puppetdb=<label> to help indicate host was added by this script
     """
 
     logging.debug('going to add %s with hostlabels %s' % (hostname, hostlabels))
@@ -101,8 +101,9 @@ def add_host_to_checkmk(hostname, hostlabels):
     checkmk_api_secret = config['checkmk_api_secret']
     checkmk_default_folder = config['checkmk_default_folder']
     checkmk_default_location = config['checkmk_default_location']
+    checkmk_puppetdb_label = config['checkmk_puppetdb_label']
 
-    hostlabels['from_puppetdb'] = 'true'
+    hostlabels['from_puppetdb'] = checkmk_puppetdb_label
 
     # Determine if host is dual stacked v4/v6 and include ip-v4v6
     # address_family if so, else leave address_family off to use default
@@ -150,6 +151,7 @@ def add_label_to_existing(hostname, new_labels):
     checkmk_api_url = config['checkmk_api_url']
     checkmk_api_username = config['checkmk_api_username']
     checkmk_api_secret = config['checkmk_api_secret']
+    checkmk_puppetdb_label = config['checkmk_puppetdb_label']
 
     # Save the attributes, save the ~world~ existing labels
     req_params = { 'action': 'get_host',
@@ -165,9 +167,9 @@ def add_label_to_existing(hostname, new_labels):
     except:
         pass
 
-    # add new labels to existing labels and ensure from_puppetdb:true
+    # add new labels to existing labels and ensure from_puppetdb label present
     existing_labels.update(new_labels)
-    existing_labels.update({ 'from_puppetdb': 'true' })
+    existing_labels.update({ 'from_puppetdb': checkmk_puppetdb_label })
 
     payload = {'request': json.dumps({
         'hostname': hostname,
@@ -222,6 +224,7 @@ def main():
 
     exclude_hosts = config.get('exclude_hosts', list())
     require_tag = config.get('require_tag', None)
+    checkmk_puppetdb_label = config['checkmk_puppetdb_label']
 
     hosts_puppetdb = get_all_hosts_puppetdb()
     hosts_checkmk = get_all_hosts_checkmk()
@@ -243,7 +246,7 @@ def main():
                 logging.debug('%s present in checkmk', host)
                 # Build minimal list of desired labels from puppetdb
                 desired_labels = hosts_puppetdb[host]
-                desired_labels.update({ 'from_puppetdb': 'true' })
+                desired_labels.update({ 'from_puppetdb': checkmk_puppetdb_label })
 
                 # Check if all desired labels are present in checkmk
                 # and update if necessary
@@ -262,13 +265,21 @@ def main():
 
 
     # Remove hosts from checkmk that are no longer in puppetdb or are excluded
+    # Only consider hosts added by this tool with the same checkmk_puppetdb_label
     hosts_extra_in_checkmk = []
     for host in hosts_checkmk:
         if host not in hosts_puppetdb or host in exclude_hosts:
+            logging.debug('host %s not in puppetdb or excluded' % host)
             # hosts_checkmk[host] will be true if from_puppetdb label present
             if hosts_checkmk[host]:
                 hosts_extra_in_checkmk.append(host)
-                del_host_from_checkmk(host)
+                if hosts_checkmk[host]['from_puppetdb']:
+                    logging.debug('host %s has puppetdb_label from this instance, deleting' % host)
+                    del_host_from_checkmk(host)
+                else:
+                    logging.debug('host %s has puppetdb_label but not from this instance' % host)
+            else:
+                logging.debug('host %s missing correct puppetdb_label, not deleting' % host)
 
 
     logging.info('%d hosts missing from checkmk', len(hosts_missing_from_checkmk))
