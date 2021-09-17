@@ -79,10 +79,12 @@ def get_all_hosts_puppetdb():
     for res in r.json():
         tags = res['tags']
         hostname = res['certname']
+        host_environment = res['environment']
         for tag in res['tags']:
             if tag.startswith('roles::') or tag.startswith('role::'):
                 host_role = tag.split('::')[1]
-        hosts[hostname] = { 'puppet_role': host_role }
+        hosts[hostname] = { 'puppet_environment': host_environment,
+            'puppet_role': host_role }
 
     logging.info('got %s hosts from puppetdb', len(hosts))
 
